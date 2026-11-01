@@ -1,7 +1,9 @@
 # Status Monitor
 ***
 System monitor, metrics, games, and stress test.
+
 ![img.png](img/img.png)
+
 by GMRicker
 
 ## Features
