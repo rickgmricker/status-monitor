@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Include xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <!-- These properties are transferred from the unelevated UI to the MSI server. -->
+  <Property Id="MONITOR_PREVIOUS_LANGUAGE" Secure="yes">
+    <RegistrySearch Id="MonitorPreviousLanguage" Root="HKCU" Key="Software\GMRicker\Status Monitor\Installer"
+                    Name="InitialLanguage" Type="raw" Win64="yes"/>
+  </Property>
+  <Property Id="MONITOR_LANGUAGE" Secure="yes"/>
+  <Property Id="MONITOR_PREVIOUS_STARTUP" Secure="yes">
+    <RegistrySearch Id="MonitorPreviousStartup" Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                    Name="Status Monitor" Type="raw" Win64="yes"/>
+  </Property>
+  <Property Id="MONITOR_STARTUP" Secure="yes"/>
+  <Property Id="MONITOR_OPTIONS_SET" Secure="yes"/>
+  <CustomAction Id="MonitorDefaultLanguage" Property="MONITOR_LANGUAGE" Value="en"/>
+  <CustomAction Id="MonitorUsePreviousLanguage" Property="MONITOR_LANGUAGE" Value="[MONITOR_PREVIOUS_LANGUAGE]"/>
+  <CustomAction Id="MonitorDefaultStartup" Property="MONITOR_STARTUP" Value="1"/>
+  <Binary Id="MonitorInstallerActions" SourceFile="$(var.MonitorInstallerActions)"/>
+  <CustomAction Id="MonitorClearUserStartup" BinaryKey="MonitorInstallerActions" DllEntry="ClearUserStartup"
+                Execute="commit" Impersonate="yes" Return="check"/>
+
+  <!-- Keep elevated binaries in protected Program Files even if the app uses another folder. -->
+  <DirectoryRef Id="ProgramFiles64Folder">
+    <Directory Id="MonitorServiceRoot" Name="Status Monitor">
+    <Directory Id="MonitorCollectorDirectory" Name="collector">
+      <Component Id="MonitorCollectorService" Guid="{C4FE292F-A24B-4E7C-8CE3-21825279137E}" Win64="yes">
+        <CreateFolder>
+          <PermissionEx Id="MonitorCollectorFolderPermissions" Sddl="D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;GRGX;;;BU)"/>
+        </CreateFolder>
+        <!-- The standalone development copy is adopted into MSI ownership too. -->
+        <RemoveFile Id="MonitorReplaceCollector" Name="StatusMonitorCollector.exe" On="install"/>
+        <File Id="MonitorCollectorExecutable" Source="$(var.MonitorCollectorPayload)\StatusMonitorCollector.exe" KeyPath="yes"/>
+        <RegistryValue Root="HKLM" Key="Software\GMRicker\Status Monitor\Installer" Name="ManagedCollector" Type="integer" Value="1"/>
+        <RegistryValue Root="HKLM" Key="Software\GMRicker\Status Monitor\Installer" Name="InstallDirectory" Type="string" Value="[INSTALLDIR]"/>
+        <ServiceInstall Id="MonitorInstallCollector" Name="GmrickerMonitorCollector" DisplayName="Status Monitor — Collector"
+                        Description="Status Monitor on-demand collector" Type="ownProcess" Start="demand"
+                        ErrorControl="normal" Account="LocalSystem" Vital="yes">
+          <PermissionEx Id="MonitorCollectorPermissions" Sddl="D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;LCRP;;;IU)"/>
+        </ServiceInstall>
+        <!-- Remove on install adopts the former manually installed service. Never auto-start it. -->
+        <ServiceControl Id="MonitorControlCollector" Name="GmrickerMonitorCollector" Stop="both" Remove="both" Wait="yes"/>
+        <RemoveFolder Id="MonitorRemoveCollectorDirectory" On="uninstall"/>
+        <RemoveFolder Id="MonitorRemoveServiceRoot" Directory="MonitorServiceRoot" On="uninstall"/>
+      </Component>
+      <Component Id="MonitorCollectorPresentMon" Guid="{D36FAC48-BFD5-4CC2-98EE-AEB951877D54}" Win64="yes">
+        <RemoveFile Id="MonitorReplacePresentMon" Name="PresentMon.exe" On="install"/>
+        <File Id="MonitorServicePresentMon" Source="$(var.MonitorCollectorPayload)\PresentMon.exe" KeyPath="yes"/>
+      </Component>
+      <Component Id="MonitorCollectorLicense" Guid="{15894123-65BC-4551-8D50-03EC920C6592}" Win64="yes">
+        <File Id="MonitorServiceLicense" Source="$(var.MonitorCollectorPayload)\PresentMon-LICENSE.txt" KeyPath="yes"/>
+      </Component>
+    </Directory>
+    </Directory>
+  </DirectoryRef>
+  <DirectoryRef Id="INSTALLDIR">
+    <!-- Keep per-user registry data in its own registry-keyed components. -->
+    <Component Id="MonitorInstallerPreferences" Guid="{00611A7F-23A4-45E8-8158-7372FE04D799}" Win64="yes">
+      <RegistryValue Root="HKCU" Key="Software\GMRicker\Status Monitor\Installer" Name="InitialLanguage"
+                     Type="string" Value="[MONITOR_LANGUAGE]" KeyPath="yes"/>
+      <!-- Also clean entries created later by the app, not only the optional component. -->
+      <RemoveRegistryValue Id="MonitorClearStartupBeforeInstall" Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                           Name="Status Monitor"/>
+    </Component>
+    <Component Id="MonitorWindowsStartup" Guid="{0B9B2C49-E3D5-4383-B25B-2ABED1B999C7}" Win64="yes" Transitive="yes">
+      <Condition>MONITOR_STARTUP = "1"</Condition>
+      <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="Status Monitor"
+                     Type="string" Value="&quot;[INSTALLDIR]Status Monitor.exe&quot; --startup" KeyPath="yes"/>
+    </Component>
+  </DirectoryRef>
+</Include>
