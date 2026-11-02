@@ -8,17 +8,13 @@ by GMRicker
 
 ## Features
 ***
-- **Status**:
-  - CPU % usage and clock frequency.
+- **Status**: CPU % usage and clock frequency.
 
-- **Specs**:
-  - System specifications such as O, Processor, Video Card, RAM, Motherboard, and Disk Drive.
+- **Specs**: System specifications such as OS, Processor, Video Card, RAM, Motherboard, and Disk Drive.
 
-- **Stress**:
-  - Processor and graphics card stress test.
+- **Stress**: Processor and graphics card stress test.
 
-- **Game Metrics**:
-  - Game performance monitoring.
+- **Game Metrics**: Game performance monitoring.
 
 ## Compact Mode
 ***
@@ -27,4 +23,5 @@ by GMRicker
 ## Ingame
 ***
 ![img.png](img/img3.png)
+
 ![img.png](img/img4.png)
