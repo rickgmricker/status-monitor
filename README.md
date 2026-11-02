@@ -1,5 +1,5 @@
 # Status Monitor
-***
+
 System monitor, metrics, games, and stress test.
 
 ![img.png](img/img.png)
@@ -7,7 +7,7 @@ System monitor, metrics, games, and stress test.
 by GMRicker
 
 ## Features
-***
+
 - **Status**: CPU % usage and clock frequency.
 
 - **Specs**: System specifications such as OS, Processor, Video Card, RAM, Motherboard, and Disk Drive.
@@ -17,11 +17,11 @@ by GMRicker
 - **Game Metrics**: Game performance monitoring.
 
 ## Compact Mode
-***
+
 ![img.png](img/img2.png)
 
 ## Ingame
-***
+
 ![img.png](img/img3.png)
 
 ![img.png](img/img4.png)
