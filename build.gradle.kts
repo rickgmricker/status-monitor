@@ -70,7 +70,7 @@ abstract class WindowsPackageTask : DefaultTask() {
 }
 
 group = "com.gmricker.monitor"
-version = "0.2.0"
+version = "0.2.1"
 
 tasks.processResources {
     val applicationVersion = project.version.toString()
