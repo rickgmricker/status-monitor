@@ -103,7 +103,7 @@ final class StatusPanel extends JPanel implements ThemeAware, LanguageAware {
             heading.add(title, BorderLayout.WEST);
             heading.add(value, BorderLayout.EAST);
             add(heading, BorderLayout.NORTH);
-            add(detail, BorderLayout.CENTER);
+            add(detail, BorderLayout.SOUTH);
         }
 
         void update(double load, String description) {
