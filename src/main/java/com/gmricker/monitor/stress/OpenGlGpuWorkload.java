@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.util.Locale;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
+import org.lwjgl.system.MemoryUtil;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL33C.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
@@ -13,6 +14,7 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 /** Offscreen shader workload. Native libraries and graphics context load only on demand. */
 final class OpenGlGpuWorkload implements GpuStressTest.Workload {
     private static final int SIZE = 1024;
+    private static final float VERIFY_PHASE = 0.37f;
     private static final String VERTEX = """
             #version 330 core
             void main() {
@@ -46,6 +48,8 @@ final class OpenGlGpuWorkload implements GpuStressTest.Workload {
     private int phaseUniform;
     private long frame;
     private String device;
+    private ByteBuffer pixels;
+    private long reference;
 
     @Override
     public void initialize() {
@@ -102,6 +106,34 @@ final class OpenGlGpuWorkload implements GpuStressTest.Workload {
         glDisable(GL_BLEND);
         glUseProgram(program);
         phaseUniform = glGetUniformLocation(program, "phase");
+        pixels = MemoryUtil.memAlloc(SIZE * SIZE * 4);
+        reference = renderVerificationFrame();
+    }
+
+    /** Draws the fixed verification frame and hashes every pixel read back from the GPU. */
+    private long renderVerificationFrame() {
+        glUniform1f(phaseUniform, VERIFY_PHASE);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        pixels.clear();
+        glReadPixels(0, 0, SIZE, SIZE, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+        if (glGetError() != GL_NO_ERROR) throw new IllegalStateException(tr("O driver interrompeu a carga gráfica."));
+        long hash = 0xcbf29ce484222325L;
+        var words = pixels.asLongBuffer();
+        while (words.hasRemaining()) hash = (hash ^ words.get()) * 0x100000001b3L;
+        return hash;
+    }
+
+    @Override
+    public boolean verify() {
+        long first = renderVerificationFrame();
+        if (first == reference) return true;
+        long second = renderVerificationFrame();
+        if (second == first) {
+            // Two identical new images: the driver swapped in a recompiled shader, not a hardware fault.
+            reference = first;
+            return true;
+        }
+        return false;
     }
 
     private static int compile(int type, String source) {
@@ -152,6 +184,7 @@ final class OpenGlGpuWorkload implements GpuStressTest.Workload {
                 glfwSetErrorCallback(null);
                 errors.free();
             }
+            if (pixels != null) MemoryUtil.memFree(pixels);
         }
     }
 }

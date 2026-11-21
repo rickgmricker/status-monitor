@@ -6,6 +6,8 @@ import com.gmricker.monitor.i18n.LanguageAware;
 import com.gmricker.monitor.metrics.SystemSnapshot;
 import com.gmricker.monitor.stress.CpuStressTest;
 import com.gmricker.monitor.stress.GpuStressTest;
+import com.gmricker.monitor.stress.ThrottleDetector;
+import java.util.ArrayList;
 import com.gmricker.monitor.theme.ThemeAware;
 import com.gmricker.monitor.theme.ThemeColors;
 import java.awt.BorderLayout;
@@ -34,6 +36,11 @@ import java.awt.Insets;
 final class StressPanel extends JPanel implements AutoCloseable, ThemeAware, LanguageAware {
     private final CpuStressTest cpuTest = new CpuStressTest();
     private final GpuStressTest gpuTest = new GpuStressTest();
+    private final ThrottleDetector cpuThrottle = new ThrottleDetector();
+    private final ThrottleDetector gpuThrottle = new ThrottleDetector();
+    private long lastFrames = -1;
+    private long lastFramesAt = -1;
+    private double gpuFps = -1;
     private boolean gpuSelected;
     private boolean running;
     private final JCheckBox limitDuration = new JCheckBox(tr("Duração (min):"), true);
@@ -112,6 +119,10 @@ final class StressPanel extends JPanel implements AutoCloseable, ThemeAware, Lan
         if (isRunning()) return;
         try {
             gpuSelected = gpu;
+            cpuThrottle.reset();
+            gpuThrottle.reset();
+            lastFrames = lastFramesAt = -1;
+            gpuFps = -1;
             if (limitDuration.isSelected()) {
                 var selectedDuration = Duration.ofMinutes((Integer) duration.getValue());
                 if (gpu) gpuTest.start(selectedDuration);
@@ -133,7 +144,9 @@ final class StressPanel extends JPanel implements AutoCloseable, ThemeAware, Lan
     private void updateState() {
         var cpu = cpuTest.status();
         var gpu = gpuTest.status();
-        state.setForeground(gpuSelected && gpu.error() != null ? ThemeColors.error() : ThemeColors.text());
+        boolean failed = gpuSelected ? gpu.error() != null : cpu.unstable();
+        var throttle = gpuSelected ? gpuThrottle : cpuThrottle;
+        state.setForeground(failed ? ThemeColors.error() : throttle.throttled() ? ThemeColors.accent() : ThemeColors.text());
         boolean running = cpu.running() || gpu.running();
         boolean previouslyRunning = this.running;
         this.running = running;
@@ -154,17 +167,41 @@ final class StressPanel extends JPanel implements AutoCloseable, ThemeAware, Lan
         boolean stopped = gpuSelected ? gpu.stopped() : cpu.stopped();
         String phase = running ? stopped ? tr("Interrompendo") : tr("Em execução") : stopped ? tr("Interrompido") : tr("Concluído");
         if (gpuSelected && gpu.preparing() && !stopped) phase = tr("Preparando GPU");
-        if (gpuSelected && gpu.error() != null) phase = tr("Falha no teste de GPU");
+        if (gpuSelected && gpu.error() != null) phase = gpu.unstable() ? tr("Instável") : tr("Falha no teste de GPU");
+        if (!gpuSelected && cpu.unstable()) phase = tr("Instável");
         boolean unlimited = total < 0;
         progress.setIndeterminate(running && unlimited);
         progress.setValue(unlimited ? 0 : (int) Math.min(100, elapsed * 100 / total));
         progress.setString(unlimited ? tr("Sem limite") : progress.getValue() + "%");
         state.setText(phase + " · " + (gpuSelected ? "GPU" : "CPU")
                 + " · " + formatTime(elapsed) + (unlimited ? "" : " / " + formatTime(total)));
-        String description = gpuSelected
-                ? gpu.error() != null ? gpu.error()
-                    : gpu.device() != null ? tr("GPU em teste: ") + gpu.device() : tr("Inicializando o driver gráfico…")
-                : tr("CPU: todos os ") + cpu.threads() + tr(" processadores lógicos disponíveis.");
+        var lines = new ArrayList<String>();
+        if (gpuSelected) {
+            if (gpu.error() != null) lines.add(gpu.error());
+            else if (gpu.device() != null) lines.add(tr("GPU em teste: ") + gpu.device()
+                    + (running && gpuFps > 0 ? " · %.0f FPS".formatted(gpuFps) : ""));
+            else lines.add(tr("Inicializando o driver gráfico…"));
+        } else if (cpu.unstable()) {
+            lines.add(tr("Erro de cálculo detectado: o processador está instável."));
+        } else {
+            lines.add(tr("CPU: todos os ") + cpu.threads() + tr(" processadores lógicos disponíveis."));
+        }
+        if (throttle.throttled()) {
+            lines.add(gpuSelected
+                    ? tr("Throttling: o desempenho da GPU caiu %.0f%% sob carga (limite térmico ou de energia).")
+                        .formatted(throttle.drop() * 100)
+                    : tr("Throttling: o clock caiu de %.2f para %.2f GHz (-%.0f%%), por limite térmico ou de energia.")
+                        .formatted(throttle.peak() / 1000, throttle.lowest() / 1000, throttle.drop() * 100));
+        }
+        if (!running && !failed) {
+            // States only what was checked: passing a short test does not prove the PC is stable.
+            lines.add(gpuSelected
+                    ? stopped ? tr("Nenhum erro de renderização detectado até a interrupção.")
+                        : tr("Nenhum erro de renderização detectado neste teste.")
+                    : stopped ? tr("Nenhum erro de cálculo detectado até a interrupção.")
+                        : tr("Nenhum erro de cálculo detectado neste teste."));
+        }
+        String description = String.join("\n", lines);
         if (!description.equals(details.getText())) details.setText(description);
         details.setToolTipText(description);
         if (!running) timer.stop();
@@ -176,12 +213,33 @@ final class StressPanel extends JPanel implements AutoCloseable, ThemeAware, Lan
     }
 
     void updateReadings(SystemSnapshot snapshot) {
+        sampleThrottling(snapshot);
         String cpu = snapshot.cpuLoad() >= 0 ? "%.0f%%".formatted(snapshot.cpuLoad() * 100) : "—";
+        if (Double.isFinite(snapshot.cpuFrequencyMhz()) && snapshot.cpuFrequencyMhz() > 0) {
+            cpu += " · %.2f GHz".formatted(snapshot.cpuFrequencyMhz() / 1000);
+        }
         String ram = snapshot.totalMemory() > 0 && snapshot.freeMemory() >= 0
                 ? "%.0f%%".formatted((snapshot.totalMemory() - snapshot.freeMemory()) * 100.0 / snapshot.totalMemory()) : "—";
         String gpu = Double.isFinite(snapshot.gpuLoad()) && snapshot.gpuLoad() >= 0
                 ? "%.0f%%".formatted(snapshot.gpuLoad() * 100) : "—";
         readings.setText("CPU: " + cpu + "   |   GPU: " + gpu + "   |   RAM: " + ram);
+    }
+
+    /** Called about once per second: CPU clock and GPU frame rate feed the throttling detectors. */
+    private void sampleThrottling(SystemSnapshot snapshot) {
+        if (gpuSelected) {
+            var gpu = gpuTest.status();
+            if (!gpu.running() || gpu.preparing() || gpu.stopped()) return;
+            if (lastFramesAt >= 0 && gpu.elapsedMillis() > lastFramesAt) {
+                gpuFps = (gpu.frames() - lastFrames) * 1000.0 / (gpu.elapsedMillis() - lastFramesAt);
+                gpuThrottle.sample(gpu.elapsedMillis(), gpuFps);
+            }
+            lastFrames = gpu.frames();
+            lastFramesAt = gpu.elapsedMillis();
+        } else {
+            var cpu = cpuTest.status();
+            if (cpu.running() && !cpu.stopped()) cpuThrottle.sample(cpu.elapsedMillis(), snapshot.cpuFrequencyMhz());
+        }
     }
 
     void stop() {
