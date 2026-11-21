@@ -3,6 +3,7 @@ package com.gmricker.monitor.ui;
 import static com.gmricker.monitor.i18n.I18n.tr;
 import com.gmricker.monitor.i18n.Language;
 import com.gmricker.monitor.installer.InstallerPreferences;
+import com.gmricker.monitor.settings.CompactMetrics;
 
 import java.awt.BorderLayout;
 import java.awt.Dialog;
@@ -24,7 +25,8 @@ import com.gmricker.monitor.theme.ThemeManager;
 final class SettingsDialog extends JDialog implements ThemeAware {
     private final CollectorServicePanel collector = new CollectorServicePanel();
     SettingsDialog(JFrame owner, JCheckBox reducedCompact, JToggleButton pin, JCheckBox closeToTray,
-                   JCheckBox startWithWindows, JComboBox<Theme> themes, JComboBox<Language> languages) {
+                   JCheckBox startWithWindows, JComboBox<Theme> themes, JComboBox<Language> languages,
+                   JComboBox<CompactMetrics> compactMetrics) {
         super(owner, tr("Configurações"), Dialog.ModalityType.MODELESS);
         setIconImages(ApplicationIcon.windowImages());
         setDefaultCloseOperation(HIDE_ON_CLOSE);
@@ -45,6 +47,12 @@ final class SettingsDialog extends JDialog implements ThemeAware {
         languageRow.add(languages, BorderLayout.CENTER);
 
         options.add(reducedCompact);
+        var compactMetricsRow = new JPanel(new BorderLayout(12, 0));
+        var compactMetricsLabel = new JLabel(tr("Exibir no modo compacto:"));
+        compactMetricsLabel.setLabelFor(compactMetrics);
+        compactMetricsRow.add(compactMetricsLabel, BorderLayout.WEST);
+        compactMetricsRow.add(compactMetrics, BorderLayout.CENTER);
+        options.add(compactMetricsRow);
         var pinned = new JCheckBox(tr("Sobrepor outros programas"), pin.isSelected());
         pinned.setEnabled(pin.isEnabled());
         pinned.setToolTipText(tr("Oculta temporariamente durante tela cheia no mesmo monitor"));

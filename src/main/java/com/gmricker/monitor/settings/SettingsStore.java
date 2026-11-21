@@ -55,7 +55,8 @@ public final class SettingsStore {
                 Theme.fromId(values.getProperty("theme")),
                 coordinate(values.getProperty("compactX")), coordinate(values.getProperty("compactY")),
                 Boolean.parseBoolean(values.getProperty("reducedCompact", "false")),
-                Language.fromId(language));
+                Language.fromId(language),
+                CompactMetrics.fromId(values.getProperty("compactMetrics")));
     }
 
     private static Integer coordinate(String value) {
@@ -77,6 +78,7 @@ public final class SettingsStore {
             values.setProperty("closeToTray", Boolean.toString(settings.closeToTray()));
             values.setProperty("theme", settings.theme().id());
             values.setProperty("language", settings.language().id());
+            values.setProperty("compactMetrics", settings.compactMetrics().id());
             if (settings.compactX() != null && settings.compactY() != null) {
                 values.setProperty("compactX", settings.compactX().toString());
                 values.setProperty("compactY", settings.compactY().toString());

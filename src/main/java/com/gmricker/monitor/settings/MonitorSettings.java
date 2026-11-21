@@ -4,16 +4,23 @@ import com.gmricker.monitor.theme.Theme;
 import com.gmricker.monitor.i18n.Language;
 
 public record MonitorSettings(boolean compact, boolean pinned, boolean closeToTray, Theme theme,
-                              Integer compactX, Integer compactY, boolean reducedCompact, Language language) {
+                              Integer compactX, Integer compactY, boolean reducedCompact, Language language,
+                              CompactMetrics compactMetrics) {
     public static final MonitorSettings DEFAULT = new MonitorSettings(false, false, false, Theme.SIMPLE);
 
     public MonitorSettings {
         if (theme == null) theme = Theme.SIMPLE;
         if (language == null) language = Language.PORTUGUESE;
+        if (compactMetrics == null) compactMetrics = CompactMetrics.CPU_RAM;
         if (compactX == null || compactY == null) {
             compactX = null;
             compactY = null;
         }
+    }
+
+    public MonitorSettings(boolean compact, boolean pinned, boolean closeToTray, Theme theme,
+                           Integer compactX, Integer compactY, boolean reducedCompact, Language language) {
+        this(compact, pinned, closeToTray, theme, compactX, compactY, reducedCompact, language, CompactMetrics.CPU_RAM);
     }
 
     public MonitorSettings(boolean compact, boolean pinned, boolean closeToTray, Theme theme,

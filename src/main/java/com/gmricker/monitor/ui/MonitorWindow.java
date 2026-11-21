@@ -9,6 +9,7 @@ import com.gmricker.monitor.metrics.SystemMetrics;
 import com.gmricker.monitor.metrics.SystemSnapshot;
 import com.gmricker.monitor.window.WindowPinController;
 import com.gmricker.monitor.window.WindowTaskbar;
+import com.gmricker.monitor.settings.CompactMetrics;
 import com.gmricker.monitor.settings.MonitorSettings;
 import com.gmricker.monitor.settings.SettingsStore;
 import com.gmricker.monitor.startup.WindowsStartup;
@@ -54,6 +55,7 @@ public final class MonitorWindow extends JFrame implements ThemeAware, LanguageA
     private final JCheckBox startWithWindows = new JCheckBox(tr("Iniciar com o Windows em modo compacto"));
     private final JComboBox<Theme> themes = new JComboBox<>(Theme.values());
     private final JComboBox<Language> languages = new JComboBox<>(Language.values());
+    private final JComboBox<CompactMetrics> compactMetrics = new JComboBox<>(CompactMetrics.values());
     private final SettingsStore settingsStore;
     private final WindowPinController pinController;
     private final MonitorTray tray;
@@ -92,6 +94,15 @@ public final class MonitorWindow extends JFrame implements ThemeAware, LanguageA
         languages.addActionListener(event -> {
             if (loadingSettings) return;
             I18n.apply((Language) languages.getSelectedItem());
+            saveSettings();
+        });
+        compactMetrics.setSelectedItem(saved.compactMetrics());
+        compactMetrics.getAccessibleContext().setAccessibleName(tr("Exibir no modo compacto"));
+        compactUsage.setText(placeholderUsage());
+        compactMetrics.addActionListener(event -> {
+            if (loadingSettings) return;
+            if (lastSnapshot != null) render(lastSnapshot);
+            else compactUsage.setText(placeholderUsage());
             saveSettings();
         });
         reducedCompact.setSelected(saved.reducedCompact());
@@ -320,7 +331,7 @@ public final class MonitorWindow extends JFrame implements ThemeAware, LanguageA
                 } catch (RuntimeException failure) {
                     SwingUtilities.invokeLater(() -> {
                         status.setText(tr("Falha na coleta: ") + failure.getMessage());
-                        compactUsage.setText("CPU: —   |   RAM: —");
+                        compactUsage.setText(placeholderUsage());
                         compactUsage.setToolTipText(status.getText());
                     });
                 } finally {
@@ -452,7 +463,7 @@ public final class MonitorWindow extends JFrame implements ThemeAware, LanguageA
                     (Theme) themes.getSelectedItem(),
                     compactLocation == null ? null : compactLocation.x,
                     compactLocation == null ? null : compactLocation.y, reducedCompact.isSelected(),
-                    (Language) languages.getSelectedItem()));
+                    (Language) languages.getSelectedItem(), selectedCompactMetrics()));
         } catch (IOException failure) {
             JOptionPane.showMessageDialog(this,
                     tr("A alteração foi aplicada, mas não pôde ser salva.\n") + failure.getMessage(),
@@ -470,7 +481,8 @@ public final class MonitorWindow extends JFrame implements ThemeAware, LanguageA
 
     private void openSettings() {
         if (settingsDialog == null) {
-            settingsDialog = new SettingsDialog(this, reducedCompact, pin, closeToTray, startWithWindows, themes, languages);
+            settingsDialog = new SettingsDialog(this, reducedCompact, pin, closeToTray, startWithWindows, themes, languages,
+                    compactMetrics);
         }
         settingsDialog.open();
     }
@@ -509,11 +521,30 @@ public final class MonitorWindow extends JFrame implements ThemeAware, LanguageA
                 ? "%.0f%%".formatted(snapshot.cpuLoad() * 100) : "—";
         String ramPercent = snapshot.totalMemory() > 0 && snapshot.freeMemory() >= 0
                 ? "%.0f%%".formatted((snapshot.totalMemory() - snapshot.freeMemory()) * 100.0 / snapshot.totalMemory()) : "—";
-        compactUsage.setText("CPU: " + cpuPercent + "   |   RAM: " + ramPercent);
+        String gpuPercent = Double.isFinite(snapshot.gpuLoad()) && snapshot.gpuLoad() >= 0
+                ? "%.0f%%".formatted(snapshot.gpuLoad() * 100) : "—";
         String frequency = Double.isFinite(snapshot.cpuFrequencyMhz()) && snapshot.cpuFrequencyMhz() > 0
                 ? " · %.2f GHz".formatted(snapshot.cpuFrequencyMhz() / 1000) : "";
-        compactUsage.setToolTipText("CPU: " + cpuPercent + frequency + " · RAM: " + ramPercent);
+        var shown = selectedCompactMetrics();
+        java.util.function.Function<String, String> value = name -> switch (name) {
+            case "CPU" -> cpuPercent;
+            case "GPU" -> gpuPercent;
+            default -> ramPercent;
+        };
+        compactUsage.setText(shown.first() + ": " + value.apply(shown.first())
+                + "   |   " + shown.second() + ": " + value.apply(shown.second()));
+        compactUsage.setToolTipText("CPU: " + cpuPercent + frequency + " · GPU: " + gpuPercent + " · RAM: " + ramPercent);
         status.setText(tr("Atualização a cada 1 segundo"));
+    }
+
+    private CompactMetrics selectedCompactMetrics() {
+        var selected = (CompactMetrics) compactMetrics.getSelectedItem();
+        return selected == null ? CompactMetrics.CPU_RAM : selected;
+    }
+
+    private String placeholderUsage() {
+        var shown = selectedCompactMetrics();
+        return shown.first() + ": —   |   " + shown.second() + ": —";
     }
 
     @Override public void applyLanguage() {
@@ -521,5 +552,6 @@ public final class MonitorWindow extends JFrame implements ThemeAware, LanguageA
         if (lastSnapshot != null) render(lastSnapshot);
         languages.repaint();
         themes.repaint();
+        compactMetrics.repaint();
     }
 }
