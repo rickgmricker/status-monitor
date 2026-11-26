@@ -41,7 +41,7 @@ class CpuStressTestTest {
     @Test void rejectsInvalidDurationAndSecondRun() throws Exception {
         try (var test = new CpuStressTest()) {
             assertThrows(IllegalArgumentException.class, () -> test.start(Duration.ZERO));
-            assertThrows(IllegalArgumentException.class, () -> test.start(Duration.ofMinutes(11)));
+            assertThrows(IllegalArgumentException.class, () -> test.start(Duration.ofMinutes(31)));
             test.startIndefinitely(1);
             assertThrows(IllegalStateException.class, () -> test.startIndefinitely(1));
             test.stop();

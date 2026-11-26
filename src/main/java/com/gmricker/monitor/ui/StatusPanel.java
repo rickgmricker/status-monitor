@@ -115,7 +115,7 @@ final class StatusPanel extends JPanel implements ThemeAware, LanguageAware {
 
         @Override public void applyTheme() {
             var font = UIManager.getFont("Label.font");
-            title.setFont(font.deriveFont(Font.BOLD, font.getSize2D() + 3));
+            title.setFont(font.deriveFont(Font.BOLD, font.getSize2D() + 1));
             value.setFont(font.deriveFont(Font.BOLD, font.getSize2D() + 3));
             detail.setFont(font.deriveFont(Math.max(10f, font.getSize2D() - 1)));
             title.setForeground(ThemeColors.text());

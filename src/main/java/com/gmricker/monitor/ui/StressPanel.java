@@ -44,7 +44,7 @@ final class StressPanel extends JPanel implements AutoCloseable, ThemeAware, Lan
     private boolean gpuSelected;
     private boolean running;
     private final JCheckBox limitDuration = new JCheckBox(tr("Duração (min):"), true);
-    private final JSpinner duration = new JSpinner(new SpinnerNumberModel(5, 1, 10, 1));
+    private final JSpinner duration = new JSpinner(new SpinnerNumberModel(5, 1, 30, 1));
     private final JButton cpuButton = new JButton(tr("Testar CPU"));
     private final JButton gpuButton = new JButton(tr("Testar GPU"));
     private final JButton stop = new JButton(tr("Parar"));

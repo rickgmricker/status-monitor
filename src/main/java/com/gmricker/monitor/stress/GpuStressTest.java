@@ -55,8 +55,8 @@ public final class GpuStressTest implements AutoCloseable {
     }
 
     public synchronized void start(Duration duration) {
-        if (duration.isZero() || duration.isNegative() || duration.compareTo(Duration.ofMinutes(10)) > 0) {
-            throw new IllegalArgumentException(tr("Escolha uma duração de até 10 minutos."));
+        if (duration.isZero() || duration.isNegative() || duration.compareTo(Duration.ofMinutes(30)) > 0) {
+            throw new IllegalArgumentException(tr("Escolha uma duração de até 30 minutos."));
         }
         startRun(duration.toNanos());
     }

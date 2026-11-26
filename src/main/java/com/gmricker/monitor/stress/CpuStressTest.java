@@ -83,8 +83,8 @@ public final class CpuStressTest implements AutoCloseable {
     }
 
     synchronized void start(int threads, Duration duration) {
-        if (duration.isNegative() || duration.isZero() || duration.compareTo(Duration.ofMinutes(10)) > 0) {
-            throw new IllegalArgumentException(tr("Escolha uma duração de até 10 minutos."));
+        if (duration.isNegative() || duration.isZero() || duration.compareTo(Duration.ofMinutes(30)) > 0) {
+            throw new IllegalArgumentException(tr("Escolha uma duração de até 30 minutos."));
         }
         startRun(threads, duration.toNanos());
     }
