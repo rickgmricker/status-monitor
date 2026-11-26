@@ -16,9 +16,9 @@ class IngamePanelTest {
             var panel = new IngamePanel(directory);
             var checkboxes = new ArrayList<JCheckBox>();
             collect(panel, checkboxes);
-            assertEquals(8, checkboxes.size());
+            assertEquals(9, checkboxes.size());
             assertFalse(checkboxes.stream().filter(box -> box.getText().equals("Mostrar todos os aplicativos")).findFirst().orElseThrow().isSelected());
-            assertEquals(5, checkboxes.stream().filter(JCheckBox::isSelected).count());
+            assertEquals(6, checkboxes.stream().filter(JCheckBox::isSelected).count());
             for (var checkbox : checkboxes) if (checkbox.isSelected()) checkbox.doClick(0);
             assertTrue(panel.settings().items().isEmpty());
             panel.close();

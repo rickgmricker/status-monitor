@@ -102,14 +102,15 @@ final class IngamePanel extends JPanel implements AutoCloseable, ThemeAware, Lan
         shortcutControls.add(shortcutButton); shortcutControls.add(resetShortcut, BorderLayout.EAST);
         body.add(row(tr("Atalho:"), shortcutControls));
         body.add(Box.createVerticalStrut(8)); body.add(text(tr("Exibir no overlay:")));
-        var selection = new JPanel(new GridLayout(3, 2, 4, 0));
+        var selection = new JPanel(new GridLayout(0, 2, 4, 0));
         for (var item : OverlaySettings.Item.values()) {
-            String label = switch (item) { case FPS -> "FPS"; case FRAMETIME -> "Frametime"; default -> item.toString(); };
+            String label = item == OverlaySettings.Item.FRAMETIME ? "Frametime" : item.toString();
             var checkbox = new JCheckBox(label, saved.items().contains(item));
             checkbox.getAccessibleContext().setAccessibleName(item.toString());
             checkbox.setAlignmentX(LEFT_ALIGNMENT);
             if (item == OverlaySettings.Item.LOW) checkbox.setToolTipText(tr("Média dos 1% de quadros mais lentos dos últimos 60 s (máximo 30 mil quadros). Requer 100 quadros."));
-            if (item == OverlaySettings.Item.FPS) checkbox.setToolTipText(tr("Médio desde o início da coleta; atual no último segundo. FPS de apresentações do jogo."));
+            if (item == OverlaySettings.Item.FPS) checkbox.setToolTipText(tr("FPS no último segundo, pelas apresentações de quadros do jogo."));
+            if (item == OverlaySettings.Item.AVERAGE_FPS) checkbox.setToolTipText(tr("FPS médio desde o início da coleta, pelas apresentações de quadros do jogo."));
             if (item == OverlaySettings.Item.FRAMETIME) checkbox.setToolTipText(tr("Tempo do último quadro e gráfico dos últimos 120 quadros."));
             items.put(item, checkbox); selection.add(checkbox);
             checkbox.addActionListener(event -> changed());

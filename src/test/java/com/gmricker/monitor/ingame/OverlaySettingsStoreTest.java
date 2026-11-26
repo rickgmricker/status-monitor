@@ -27,8 +27,19 @@ class OverlaySettingsStoreTest {
         assertEquals(OverlaySettings.DEFAULT.items(), loaded.items());
     }
     @Test void keepsAgreedDisplayOrder() {
-        assertEquals(List.of("CPU", "GPU", "RAM", "LOW", "FPS", "FRAMETIME"),
+        assertEquals(List.of("CPU", "GPU", "RAM", "LOW", "AVERAGE_FPS", "FPS", "FRAMETIME"),
                 Arrays.stream(OverlaySettings.Item.values()).map(Enum::name).toList());
+    }
+    @Test void averageFpsFollowsTheOldCombinedFpsChoice() throws Exception {
+        var store = new OverlaySettingsStore(directory);
+        Files.writeString(directory.resolve("ingame.properties"), "FPS=false\n");
+        assertFalse(store.load().items().contains(OverlaySettings.Item.AVERAGE_FPS));
+        Files.writeString(directory.resolve("ingame.properties"), "FPS=true\n");
+        assertTrue(store.load().items().contains(OverlaySettings.Item.AVERAGE_FPS));
+        Files.writeString(directory.resolve("ingame.properties"), "FPS=true\nAVERAGE_FPS=false\n");
+        var loaded = store.load().items();
+        assertTrue(loaded.contains(OverlaySettings.Item.FPS));
+        assertFalse(loaded.contains(OverlaySettings.Item.AVERAGE_FPS));
     }
     @Test void persistsCustomShortcutAndDefaultsForOldOrReservedValues() throws Exception {
         var store = new OverlaySettingsStore(directory);

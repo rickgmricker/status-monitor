@@ -17,7 +17,10 @@ public final class OverlaySettingsStore {
         var defaults = OverlaySettings.DEFAULT;
         var items = EnumSet.noneOf(OverlaySettings.Item.class);
         for (var item : OverlaySettings.Item.values()) {
-            if (Boolean.parseBoolean(values.getProperty(item.name(), "" + defaults.items().contains(item)))) items.add(item);
+            String fallback = "" + defaults.items().contains(item);
+            // Older files had one FPS item showing both values; keep the average as the user left it.
+            if (item == OverlaySettings.Item.AVERAGE_FPS) fallback = values.getProperty(OverlaySettings.Item.FPS.name(), fallback);
+            if (Boolean.parseBoolean(values.getProperty(item.name(), fallback))) items.add(item);
         }
         OverlaySettings.Corner corner;
         try { corner = OverlaySettings.Corner.valueOf(values.getProperty("corner", defaults.corner().name())); }

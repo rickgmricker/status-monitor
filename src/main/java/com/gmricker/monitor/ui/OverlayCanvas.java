@@ -25,26 +25,63 @@ final class OverlayCanvas extends JComponent {
         revalidate();
         repaint();
     }
+    /** Hardware rows: name, usage and detail; columns are padded so they line up in the monospaced font. */
+    private record HardwareRow(String name, String usage, String detail) { }
+    private HardwareRow hardware(OverlaySettings.Item item) {
+        return switch (item) {
+            case CPU -> new HardwareRow("CPU", percent(system == null ? -1 : system.cpuLoad()),
+                    system != null && Double.isFinite(system.cpuFrequencyMhz()) && system.cpuFrequencyMhz() > 0
+                    ? "%.2f GHz".formatted(system.cpuFrequencyMhz() / 1000) : "");
+            case GPU -> new HardwareRow("GPU", percent(system == null ? -1 : system.gpuLoad()),
+                     (system != null && system.gpuMemoryUsed() >= 0 ? "%.2f GiB".formatted(system.gpuMemoryUsed() / 1073741824.0) : "—"));
+            case RAM -> system != null && system.totalMemory() > 0 && system.freeMemory() >= 0
+                    ? new HardwareRow("RAM", percent((double) (system.totalMemory() - system.freeMemory()) / system.totalMemory()),
+                    "%.1f GiB".formatted((system.totalMemory() - system.freeMemory()) / 1073741824.0))
+                    : new HardwareRow("RAM", "—", "");
+            default -> null;
+        };
+    }
     List<String> lines() {
+        var rows = new java.util.EnumMap<OverlaySettings.Item, HardwareRow>(OverlaySettings.Item.class);
+        for (var item : List.of(CPU, GPU, RAM)) if (settings.items().contains(item)) rows.put(item, hardware(item));
+        // At least "99%" wide, so single-digit loads don't shift the columns.
+        int usageWidth = Math.max(3, rows.values().stream().mapToInt(row -> row.usage().length()).max().orElse(0));
+        int detailWidth = rows.values().stream().mapToInt(row -> row.detail().length()).max().orElse(0);
+        // Frame rows: values start in one column, right after the widest selected label.
+        int labelWidth = java.util.stream.Stream.of(LOW, AVERAGE_FPS, FPS, FRAMETIME)
+                .filter(settings.items()::contains).mapToInt(item -> frameLabel(item).length()).max().orElse(0);
         var result = new ArrayList<String>();
         for (var item : OverlaySettings.Item.values()) {
             if (!settings.items().contains(item)) continue;
             result.add(switch (item) {
-                case CPU -> "CPU  " + percent(system == null ? -1 : system.cpuLoad())
-                        + (system != null && Double.isFinite(system.cpuFrequencyMhz()) && system.cpuFrequencyMhz() > 0
-                        ? " · %.2f GHz".formatted(system.cpuFrequencyMhz() / 1000) : "");
-                case GPU -> "GPU  " + percent(system == null ? -1 : system.gpuLoad())
-                        + " · VRAM " + (system != null && system.gpuMemoryUsed() >= 0
-                        ? "%.2f GiB".formatted(system.gpuMemoryUsed() / 1073741824.0) : "—");
-                case RAM -> system != null && system.totalMemory() > 0 && system.freeMemory() >= 0
-                        ? "RAM  %.0f%% · %.1f GiB".formatted(100.0 * (system.totalMemory() - system.freeMemory()) / system.totalMemory(),
-                        (system.totalMemory() - system.freeMemory()) / 1073741824.0) : "RAM  —";
-                case LOW -> "1% low  " + number(frames.lowFps(), " FPS");
-                case FPS -> tr("FPS  méd ") + number(frames.averageFps(), "") + tr(" · atual ") + number(frames.currentFps(), "");
-                case FRAMETIME -> "Frametime  " + (Double.isFinite(frames.frameMs()) ? "%.2f ms".formatted(frames.frameMs()) : "—");
+                case CPU, GPU, RAM -> {
+                    var row = rows.get(item);
+                    yield row.name() + "  " + " ".repeat(usageWidth - row.usage().length()) + row.usage()
+                            + (row.detail().isEmpty() ? "" : " · " + " ".repeat(detailWidth - row.detail().length()) + row.detail());
+                }
+                case LOW, AVERAGE_FPS, FPS, FRAMETIME -> {
+                    String label = frameLabel(item);
+                    yield label + " ".repeat(labelWidth - label.length() + 2) + frameValue(item);
+                }
             });
         }
         return result;
+    }
+    private static String frameLabel(OverlaySettings.Item item) {
+        return switch (item) {
+            case LOW -> "1% low";
+            case AVERAGE_FPS -> tr("Média");
+            case FPS -> "FPS";
+            default -> "Frametime";
+        };
+    }
+    private String frameValue(OverlaySettings.Item item) {
+        return switch (item) {
+            case LOW -> number(frames.lowFps(), " FPS");
+            case AVERAGE_FPS -> number(frames.averageFps(), " FPS");
+            case FPS -> number(frames.currentFps(), "");
+            default -> Double.isFinite(frames.frameMs()) ? "%.2f ms".formatted(frames.frameMs()) : "—";
+        };
     }
     private static String percent(double value) { return Double.isFinite(value) && value >= 0 ? "%.0f%%".formatted(value * 100) : "—"; }
     private static String number(double value, String suffix) { return Double.isFinite(value) ? "%.0f".formatted(value) + suffix : "—"; }

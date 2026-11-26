@@ -8,8 +8,8 @@ import java.util.EnumSet;
 public record OverlaySettings(Set<Item> items, Corner corner, int fontSize, int opacity, int textRgb,
                               OverlayShortcut shortcut, boolean automaticDetection) {
     public enum Item {
-        CPU("CPU"), GPU("GPU"), RAM("RAM"), LOW("1% low"), FPS("FPS — médio e atual"),
-        FRAMETIME("Frametime — valor e gráfico");
+        CPU("CPU"), GPU("GPU"), RAM("RAM"), LOW("1% low"), AVERAGE_FPS("FPS médio"),
+        FPS("FPS atual"), FRAMETIME("Frametime — valor e gráfico");
         private final String label;
         Item(String label) { this.label = label; }
         @Override public String toString() { return tr(label); }
@@ -22,7 +22,7 @@ public record OverlaySettings(Set<Item> items, Corner corner, int fontSize, int 
         @Override public String toString() { return tr(label); }
     }
     public static final OverlaySettings DEFAULT = new OverlaySettings(
-            EnumSet.of(Item.CPU, Item.GPU, Item.RAM, Item.FPS), Corner.TOP_LEFT, 14, 70, 0xE2E5E7,
+            EnumSet.of(Item.CPU, Item.GPU, Item.RAM, Item.FPS, Item.AVERAGE_FPS), Corner.TOP_LEFT, 14, 70, 0xE2E5E7,
             OverlayShortcut.DEFAULT, true);
     public OverlaySettings {
         items = Set.copyOf(items);
